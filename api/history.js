@@ -38,10 +38,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ items: runs, count: runs.length });
   } catch (err) {
-    console.error('[/api/history] hata:', err);
+    console.error('[/api/history] stack:', err.stack);
     return res.status(500).json({
-      error: 'Geçmiş testler getirilirken sunucu hatası oluştu.',
-      detail: err.message,
+      error: err.message || 'Geçmiş testler getirilirken sunucu hatası oluştu.',
     });
   }
 }

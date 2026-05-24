@@ -93,9 +93,10 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('[/api/test] hata:', err);
+    // Vercel loglarında tam hata zinciri görünsün.
+    console.error('[/api/test] stack:', err.stack);
     return res.status(500).json({
-      error: 'Test çalıştırılırken sunucu hatası oluştu.',
-      detail: err.message,
+      error: err.message || 'Test çalıştırılırken sunucu hatası oluştu.',
     });
   }
 }
