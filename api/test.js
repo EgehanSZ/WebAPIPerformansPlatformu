@@ -3,19 +3,20 @@
 //
 // Body: { url: string, requestCount: number, method?: 'GET'|'HEAD' }
 //
-// 1) Girdi doğrulaması (URL formatı, sayı sınırı)
-// 2) Performans testini çalıştırır
-// 3) Sonucu MongoDB'ye kaydeder
-// 4) Frontend'e döner
+// 1) Clerk token doğrulaması (401 → yetkisiz)
+// 2) Girdi doğrulaması (URL formatı, sayı sınırı)
+// 3) Performans testini çalıştırır
+// 4) Sonucu userId ile birlikte MongoDB'ye kaydeder
+// 5) Frontend'e döner
 
 import { connectDB } from '../lib/db.js';
 import TestRun from '../lib/models/TestRun.js';
 import { runPerformanceTest } from '../lib/runPerformanceTest.js';
+import { requireAuth } from '../lib/auth.js';
 
 const MAX_REQUESTS =
   Number(process.env.MAX_REQUESTS_PER_TEST) || 200;
 
-// Sadece http/https şemalarına izin ver — SSRF riskine karşı temel koruma.
 function validateUrl(input) {
   let parsed;
   try {
@@ -30,10 +31,9 @@ function validateUrl(input) {
 }
 
 export default async function handler(req, res) {
-  // CORS (Vercel preview ve farklı origin'lerden test için)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
@@ -45,14 +45,21 @@ export default async function handler(req, res) {
       .json({ error: 'Method not allowed. POST kullanın.' });
   }
 
+  // ---- Kimlik doğrulama ----
+  let userId;
   try {
-    // Vercel Node fonksiyonlarında req.body genelde otomatik parse edilir.
+    userId = await requireAuth(req);
+  } catch (err) {
+    return res.status(err.status ?? 401).json({ error: err.message });
+  }
+
+  try {
     const body =
       typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
 
     const { url, requestCount, method = 'GET' } = body;
 
-    // ---- Doğrulama ----
+    // ---- Girdi doğrulama ----
     const urlCheck = validateUrl(url);
     if (!urlCheck.ok) {
       return res.status(400).json({ error: urlCheck.reason });
@@ -82,9 +89,9 @@ export default async function handler(req, res) {
       method,
     });
 
-    // ---- Kaydet ----
+    // ---- Kaydet (userId dahil) ----
     await connectDB();
-    const saved = await TestRun.create(result);
+    const saved = await TestRun.create({ userId, ...result });
 
     return res.status(201).json({
       id: saved._id,
@@ -93,7 +100,6 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('[/api/test] hata:', err);
-    // Vercel loglarında tam hata zinciri görünsün.
     console.error('[/api/test] stack:', err.stack);
     return res.status(500).json({
       error: err.message || 'Test çalıştırılırken sunucu hatası oluştu.',

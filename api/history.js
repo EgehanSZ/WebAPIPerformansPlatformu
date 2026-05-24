@@ -1,15 +1,17 @@
 // api/history.js
 // GET /api/history?limit=20
 //
-// En son çalıştırılan testleri (yeni → eski) listeler.
-// Frontend'de "geçmiş testler" tablosunu beslemek için kullanılır.
+// Sadece giriş yapmış kullanıcının (userId) testlerini döndürür.
+// Kimlik doğrulaması Clerk JWT ile yapılır.
 
 import { connectDB } from '../lib/db.js';
 import TestRun from '../lib/models/TestRun.js';
+import { requireAuth } from '../lib/auth.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
@@ -21,8 +23,15 @@ export default async function handler(req, res) {
       .json({ error: 'Method not allowed. GET kullanın.' });
   }
 
+  // ---- Kimlik doğrulama ----
+  let userId;
   try {
-    // Sayfa boyutunu makul bir aralıkta tut (1..100).
+    userId = await requireAuth(req);
+  } catch (err) {
+    return res.status(err.status ?? 401).json({ error: err.message });
+  }
+
+  try {
     const limit = Math.min(
       100,
       Math.max(1, parseInt(req.query?.limit, 10) || 20)
@@ -30,8 +39,8 @@ export default async function handler(req, res) {
 
     await connectDB();
 
-    // Liste sayfasında detaylı sample'lara ihtiyaç yok — payload'ı küçük tut.
-    const runs = await TestRun.find({}, { samples: 0 })
+    // userId filtresiyle sadece bu kullanıcının testlerini getir.
+    const runs = await TestRun.find({ userId }, { samples: 0 })
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();

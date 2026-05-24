@@ -1,14 +1,21 @@
 // client/src/services/api.js
 // Backend ile haberleşen ince istemci katmanı.
-// Bileşenler doğrudan fetch çağırmaz; bu dosyayı kullanır.
+// Her public metot isteğe bağlı bir `token` parametresi alır;
+// varsa Authorization: Bearer <token> başlığı olarak taşınır.
 
-const BASE = ''; // aynı origin (Vercel + Vite proxy ile aynı domain)
+const BASE = '';
 
-async function request(path, options = {}) {
+async function request(path, options = {}, token = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { ...headers, ...(options.headers ?? {}) },
   });
+
   const text = await res.text();
   let data;
   try {
@@ -26,20 +33,23 @@ async function request(path, options = {}) {
 export const api = {
   /**
    * Yeni bir performans testi başlatır.
-   * @param {{ url: string, requestCount: number, method?: 'GET'|'HEAD' }} payload
+   * @param {{ url: string, requestCount: number, method?: string }} payload
+   * @param {string|null} token  Clerk JWT
    */
-  runTest(payload) {
-    return request('/api/test', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  runTest(payload, token) {
+    return request(
+      '/api/test',
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    );
   },
 
   /**
-   * Geçmiş test sonuçlarını getirir.
+   * Kullanıcıya ait geçmiş test sonuçlarını getirir.
    * @param {number} [limit=20]
+   * @param {string|null} token  Clerk JWT
    */
-  getHistory(limit = 20) {
-    return request(`/api/history?limit=${limit}`);
+  getHistory(limit = 20, token) {
+    return request(`/api/history?limit=${limit}`, {}, token);
   },
 };
