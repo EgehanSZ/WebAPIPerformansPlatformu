@@ -1,0 +1,25 @@
+# Bağımlılıklar
+node_modules/
+client/node_modules/
+
+# Build çıktıları
+client/dist/
+.vercel/
+
+# Ortam dosyaları
+.env
+.env.local
+.env.*.local
+
+# Editör / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Loglar
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+.vercel

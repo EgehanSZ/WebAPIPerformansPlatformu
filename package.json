@@ -1,0 +1,21 @@
+{
+  "name": "web-api-performans-platformu",
+  "version": "1.0.0",
+  "description": "Bulut tabanlı Web API performans test ve analiz platformu (Vercel + MongoDB Atlas)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cd client && npm install && npm run build",
+    "vercel-build": "cd client && npm install && npm run build"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "mongoose": "^8.7.0"
+  },
+  "devDependencies": {
+    "vercel": "^37.0.0"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
