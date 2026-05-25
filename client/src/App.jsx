@@ -1,191 +1,234 @@
 // client/src/App.jsx
-// Dış sarmalayıcı ClerkProvider'ı koyar; iç AppContent ise
-// useAuth hook'uyla JWT alarak API çağrıları yapar.
-// İki bileşene ayrılmasının nedeni: useAuth, ClerkProvider içinde
-// çalışmak zorundadır.
+// Uygulama giriş noktası:
+// • Oturum yoksa → tam ekran sign-in sayfası (sidebar gizli)
+// • Oturum varsa  → sidebar + navbar + görünüm yönlendirmesi
+// • Sonner toast ile başarı/hata bildirimleri
 
 import { useCallback, useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ClerkProvider,
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  UserButton,
-  useAuth,
+  ClerkProvider, SignedIn, SignedOut,
+  SignInButton, useAuth,
 } from '@clerk/clerk-react';
+import { toast } from 'sonner';
+import { Activity, ArrowRight } from 'lucide-react';
 
-import TestForm from './components/TestForm.jsx';
-import Loader from './components/Loader.jsx';
-import Dashboard from './components/Dashboard.jsx';
-import HistoryList from './components/HistoryList.jsx';
-import { api } from './services/api.js';
+import Layout        from './components/layout/Layout.jsx';
+import TestForm      from './components/TestForm.jsx';
+import Dashboard     from './components/Dashboard.jsx';
+import HistoryList   from './components/HistoryList.jsx';
+import SkeletonDashboard from './components/ui/SkeletonDashboard.jsx';
+import { api }       from './services/api.js';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-// ----------------------------------------------------------------
-// İç bileşen — ClerkProvider içinde çalışır, useAuth erişebilir.
-// ----------------------------------------------------------------
+// ── Ayarlar görünümü (placeholder) ────────────────────────────────
+function SettingsView() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-card rounded-2xl p-8 border border-white/60 text-center max-w-md mx-auto mt-12"
+    >
+      <p className="text-2xl mb-2">⚙️</p>
+      <h2 className="text-base font-bold text-slate-800">Ayarlar</h2>
+      <p className="text-sm text-slate-500 mt-1">
+        Bu bölüm yakında kullanıma açılacak.
+      </p>
+    </motion.div>
+  );
+}
+
+// ── Tam ekran giriş sayfası (oturum açmamış) ──────────────────────
+function SignInPage() {
+  return (
+    <div className="min-h-screen bg-app-gradient flex items-center justify-center p-6">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
+        className="w-full max-w-md"
+      >
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700
+                          flex items-center justify-center shadow-2xl shadow-brand-900/30">
+            <Activity className="w-7 h-7 text-white" />
+          </div>
+        </div>
+
+        {/* Kart */}
+        <div className="glass-card rounded-3xl p-8 border border-white/60 text-center space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">API Monitor</h1>
+            <p className="text-slate-500 text-sm mt-1.5">
+              Web API performans test platformuna hoş geldin.
+            </p>
+          </div>
+
+          {/* Özellikler */}
+          <div className="text-left space-y-2.5">
+            {[
+              '🚀 Saniyeler içinde performans testleri',
+              '📊 Gerçek zamanlı latency grafikleri',
+              '📄 PDF ve CSV rapor dışa aktarma',
+              '🔒 Kişisel test geçmişi ve güvenli oturum',
+            ].map((f) => (
+              <div key={f} className="flex items-start gap-2.5 text-sm text-slate-600">
+                <span>{f}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Giriş butonu */}
+          <SignInButton mode="modal">
+            <button className="btn-primary w-full py-3 text-base justify-center">
+              Başlamak için Giriş Yap
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </SignInButton>
+
+          <p className="text-xs text-slate-400">
+            Ücretsiz hesap oluşturabilirsiniz. Kredi kartı gerekmez.
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ── Oturum açık — asıl uygulama içeriği ──────────────────────────
 function AppContent() {
   const { getToken, isSignedIn, isLoaded } = useAuth();
 
-  const [isRunning, setIsRunning] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
-
-  const [history, setHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [activeView,    setActiveView]    = useState('test');
+  const [isRunning,     setIsRunning]     = useState(false);
+  const [result,        setResult]        = useState(null);
+  const [history,       setHistory]       = useState([]);
+  const [historyLoading,setHistoryLoading]= useState(false);
 
   const loadHistory = useCallback(async () => {
-    if (!isSignedIn) {
-      setHistory([]);
-      return;
-    }
+    if (!isSignedIn) { setHistory([]); return; }
     setHistoryLoading(true);
     try {
       const token = await getToken();
-      const data = await api.getHistory(20, token);
+      const data  = await api.getHistory(20, token);
       setHistory(data.items || []);
     } catch (err) {
-      console.error('Geçmiş yüklenirken hata:', err);
+      toast.error('Geçmiş yüklenemedi: ' + err.message);
     } finally {
       setHistoryLoading(false);
     }
   }, [isSignedIn, getToken]);
 
-  // Kullanıcı oturum açtığında/kapattığında geçmişi yenile.
   useEffect(() => {
     if (isLoaded) loadHistory();
   }, [isLoaded, loadHistory]);
 
   const handleRunTest = async (payload) => {
     setIsRunning(true);
-    setError(null);
     setResult(null);
+    const toastId = toast.loading('Test çalışıyor…');
     try {
       const token = await getToken();
-      const data = await api.runTest(payload, token);
+      const data  = await api.runTest(payload, token);
       setResult(data);
+      setActiveView('test');
+      toast.success(
+        `Test tamamlandı — %${data.successRate.toFixed(1)} başarı, ort. ${data.averageLatency.toFixed(0)}ms`,
+        { id: toastId, duration: 5000 }
+      );
       loadHistory();
     } catch (err) {
-      setError(err.message || 'Beklenmedik bir hata oluştu.');
+      toast.error('Test başarısız: ' + err.message, { id: toastId });
     } finally {
       setIsRunning(false);
     }
   };
 
+  // Clerk yüklenene kadar boş ekran
+  if (!isLoaded) return null;
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* ---- Header ---- */}
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">
-              Web API Performans Test Platformu
-            </h1>
-            <p className="text-sm text-slate-500">
-              Bulut tabanlı (Vercel + MongoDB Atlas) API performans analizi
-            </p>
-          </div>
+    <>
+      {/* Oturum açmamış → tam ekran sign-in */}
+      <SignedOut>
+        <SignInPage />
+      </SignedOut>
 
-          {/* Clerk auth bileşenleri */}
-          <div className="flex items-center gap-3">
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button className="btn-primary text-sm px-4 py-2">
-                  Giriş Yap
-                </button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: 'h-9 w-9',
-                  },
-                }}
-              />
-            </SignedIn>
-          </div>
-        </div>
-      </header>
-
-      {/* ---- Ana içerik ---- */}
-      <main className="mx-auto max-w-6xl px-6 py-8 space-y-8">
-        {/* Oturum açmamış kullanıcı bildirimi */}
-        <SignedOut>
-          <div className="card text-center py-12">
-            <p className="text-lg font-medium text-slate-700">
-              Test platformuna erişmek için giriş yap
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              Testlerin kaydedilmesi ve geçmiş görüntüleme için hesap gerekli.
-            </p>
-            <SignInButton mode="modal">
-              <button className="btn-primary mt-4">Giriş Yap / Kayıt Ol</button>
-            </SignInButton>
-          </div>
-        </SignedOut>
-
-        {/* Oturum açmış kullanıcı içeriği */}
-        <SignedIn>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1">
-              <TestForm onSubmit={handleRunTest} isRunning={isRunning} />
-            </div>
-
-            <div className="lg:col-span-2 space-y-6">
-              {isRunning && <Loader />}
-
-              {error && !isRunning && (
-                <div className="card border-red-200 bg-red-50">
-                  <h3 className="font-medium text-red-800">Test başarısız</h3>
-                  <p className="mt-1 text-sm text-red-700">{error}</p>
+      {/* Oturum açık → tam uygulama */}
+      <SignedIn>
+        <Layout activeView={activeView} onNavigate={setActiveView}>
+          <AnimatePresence mode="wait">
+            {activeView === 'test' && (
+              <motion.div key="test" className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
+                {/* Sol: form */}
+                <div className="lg:col-span-1">
+                  <TestForm onSubmit={handleRunTest} isRunning={isRunning} />
                 </div>
-              )}
 
-              {result && !isRunning && <Dashboard result={result} />}
+                {/* Sağ: sonuç / skeleton / boş durum */}
+                <div className="lg:col-span-2">
+                  {isRunning && <SkeletonDashboard />}
 
-              {!isRunning && !result && !error && (
-                <div className="card text-center text-slate-500">
-                  <p className="font-medium text-slate-700">
-                    Sonuçları burada göreceksin
-                  </p>
-                  <p className="mt-1 text-sm">
-                    Sol formdan bir URL gir ve testi başlat.
-                  </p>
+                  {!isRunning && result && <Dashboard result={result} />}
+
+                  {!isRunning && !result && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="glass-card rounded-2xl border border-white/60 flex flex-col
+                                 items-center justify-center py-20 text-center"
+                    >
+                      <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center
+                                      justify-center mb-4 shadow-inner">
+                        <Activity className="w-7 h-7 text-brand-400" />
+                      </div>
+                      <p className="font-semibold text-slate-700">
+                        Test sonuçları burada görünecek
+                      </p>
+                      <p className="text-sm text-slate-400 mt-1">
+                        Sol formu doldur ve testi başlat.
+                      </p>
+                    </motion.div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </motion.div>
+            )}
 
-          <HistoryList
-            items={history}
-            loading={historyLoading}
-            onRefresh={loadHistory}
-          />
-        </SignedIn>
+            {activeView === 'history' && (
+              <motion.div key="history">
+                <HistoryList
+                  items={history}
+                  loading={historyLoading}
+                  onRefresh={loadHistory}
+                />
+              </motion.div>
+            )}
 
-        <footer className="pt-4 pb-8 text-center text-xs text-slate-400">
-          Vercel · MongoDB Atlas · React · Clerk · Tailwind · Recharts
-        </footer>
-      </main>
-    </div>
+            {activeView === 'settings' && (
+              <motion.div key="settings">
+                <SettingsView />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Layout>
+      </SignedIn>
+    </>
   );
 }
 
-// ----------------------------------------------------------------
-// Dış bileşen — ClerkProvider'ı sağlar.
-// ----------------------------------------------------------------
+// ── Kök bileşen ────────────────────────────────────────────────────
 export default function App() {
   if (!PUBLISHABLE_KEY) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-red-600 font-medium">
-          VITE_CLERK_PUBLISHABLE_KEY ortam değişkeni tanımlı değil.
-          <br />
-          <code className="text-sm">client/.env.local</code> dosyasını
-          kontrol et.
-        </p>
+      <div className="min-h-screen flex items-center justify-center bg-app-gradient">
+        <div className="glass-card rounded-2xl p-8 text-center max-w-sm border border-red-200">
+          <p className="text-red-600 font-semibold">Yapılandırma Hatası</p>
+          <p className="text-sm text-slate-500 mt-1">
+            <code>VITE_CLERK_PUBLISHABLE_KEY</code> ortam değişkeni eksik.
+          </p>
+        </div>
       </div>
     );
   }
