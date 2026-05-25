@@ -5,27 +5,110 @@
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  body {
-    @apply text-slate-800 antialiased;
-  }
+
+  /* Şık özel kaydırma çubuğu */
+  ::-webkit-scrollbar        { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 }
 
 @layer components {
-  .card {
-    @apply bg-white rounded-2xl shadow-sm border border-slate-200 p-6;
+
+  /* ── Glassmorphism kart ── */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow:
+      0 1px 3px  rgba(0, 0, 0, 0.04),
+      0 6px 20px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85);
   }
+  .glass-card-hover {
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .glass-card-hover:hover {
+    box-shadow:
+      0 4px 8px  rgba(0, 0, 0, 0.07),
+      0 16px 36px rgba(0, 0, 0, 0.11),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transform: translateY(-2px);
+  }
+
+  /* ── Genel input ── */
+  .input-field {
+    @apply w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5
+           text-sm text-slate-800 placeholder-slate-400
+           transition-all duration-200 outline-none
+           focus:border-brand-400 focus:ring-4 focus:ring-brand-100
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ── Etiket ── */
+  .field-label {
+    @apply block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5;
+  }
+
+  /* ── Ana buton ── */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 bg-brand-600
-           hover:bg-brand-700 disabled:bg-slate-300 disabled:cursor-not-allowed
-           text-white font-medium px-5 py-2.5 rounded-lg transition;
+    @apply inline-flex items-center justify-center gap-2
+           bg-brand-600 hover:bg-brand-700 active:bg-brand-800
+           disabled:opacity-50 disabled:cursor-not-allowed
+           text-white text-sm font-semibold
+           px-5 py-2.5 rounded-xl
+           shadow-sm hover:shadow-md
+           transition-all duration-200;
   }
-  .input {
-    @apply w-full rounded-lg border border-slate-300 px-4 py-2.5
-           focus:outline-none focus:ring-2 focus:ring-brand-500
-           focus:border-transparent transition;
+
+  /* ── İkincil buton ── */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           border border-slate-200 bg-white/60 hover:bg-white
+           text-slate-600 hover:text-slate-900 text-sm font-medium
+           px-4 py-2 rounded-xl
+           transition-all duration-200;
   }
-  .label {
-    @apply block text-sm font-medium text-slate-700 mb-1.5;
+
+  /* ── Shimmer skeleton ── */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #e2e8f0 25%,
+      #f1f5f9 50%,
+      #e2e8f0 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.8s linear infinite;
+    border-radius: 8px;
+  }
+
+  /* ── Sidebar menü öğesi ── */
+  .nav-item {
+    @apply flex w-full items-center gap-3 rounded-xl px-3 py-2.5
+           text-sm font-medium transition-all duration-150;
+  }
+  .nav-item-inactive {
+    @apply text-slate-400 hover:text-white hover:bg-white/10;
+  }
+  .nav-item-active {
+    @apply text-white bg-brand-600 shadow-lg shadow-brand-900/30;
+  }
+
+  /* ── Recharts özel tooltip ── */
+  .recharts-tooltip-custom {
+    @apply glass-card rounded-xl px-3 py-2 text-xs shadow-lg;
+  }
+}
+
+@layer utilities {
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #4f46e5, #06b6d4);
   }
 }
