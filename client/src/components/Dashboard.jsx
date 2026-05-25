@@ -9,7 +9,7 @@ import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, defs,
+  Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import {
   Timer, TrendingDown, TrendingUp, BarChart2,
