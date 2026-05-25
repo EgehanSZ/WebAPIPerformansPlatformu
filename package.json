@@ -9,6 +9,7 @@
     "vercel-build": "cd client && npm install && npm run build"
   },
   "dependencies": {
+    "@clerk/backend": "^3.4.13",
     "axios": "^1.7.7",
     "mongoose": "^8.7.0"
   },
