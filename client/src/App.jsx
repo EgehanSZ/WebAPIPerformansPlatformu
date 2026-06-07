@@ -12,6 +12,7 @@ import {
 } from '@clerk/clerk-react';
 import { toast } from 'sonner';
 import { Activity, ArrowRight } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 
 import Layout        from './components/layout/Layout.jsx';
 import TestForm      from './components/TestForm.jsx';
@@ -236,6 +237,7 @@ export default function App() {
   return (
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <AppContent />
+      <Analytics />
     </ClerkProvider>
   );
 }
